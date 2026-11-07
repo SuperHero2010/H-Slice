@@ -1,0 +1,9 @@
+name: Feature Request
+description: Request something to be added to H-Slice
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: What feature do you want to get added on the **H-Slice** engine?
+    validations:
+      required: true
