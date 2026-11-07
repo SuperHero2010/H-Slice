@@ -1,3 +1,7 @@
+H-Slice 0.2.0 is not me, it's HRK.EXEX. I created for only testing.
+
+<details>
+<summary>Original description is here</summary>
 # FNF - H-Slice (HRK Engine Redux)  
 This engine will implement some features inherited from my old Engine.  
 And add some new things.....?.....in the future.  
@@ -17,7 +21,7 @@ Bluesky: @hrekexexex.bsky.social
 This project using linc_luajit by Lily/mcagabe19  
 For more information, It's here a link.  
 https://github.com/mcagabe19/linc_luajit-rewriten/  
-  
+
 <details>
 <summary>Original description is here</summary>
 <!-- Thanks soushimiya for this README template! -->
@@ -161,4 +165,5 @@ Distributed under the Apache License 2.0. See [Licence](https://github.com/Psych
 [license-shield]: https://img.shields.io/github/license/Psych-Slice/P-Slice.svg?style=for-the-badge
 [license-url]: https://github.com/Psych-Slice/P-Slice/blob/master/LICENSE.txt!
 
+</details>
 </details>
