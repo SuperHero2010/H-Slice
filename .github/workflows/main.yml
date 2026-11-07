@@ -11,6 +11,7 @@ jobs:
   BuildDesktop:
     name: ${{ matrix.name }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: Windows
