@@ -43,6 +43,10 @@ jobs:
         if: inputs.name == 'Linux'
         run: sudo apt install libvlc-dev libvlccore-dev
 
+      - name: Install libVLC (macOS)
+        if: startsWith(inputs.name, 'macOS')
+        run: brew install vlc
+
       - name: Install Libraries
         run: ${{ inputs.setupScript }}
 
