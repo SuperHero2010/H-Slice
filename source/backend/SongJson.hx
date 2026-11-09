@@ -47,7 +47,37 @@ class SongJson {
 		If `str` is null, the result is unspecified.
 	**/
 	static public inline function parse(str:String):Dynamic {
+		var LARGE_FILE_THRESHOLD = 500 * 1024 * 1024;
+
+		if (str.length > LARGE_FILE_THRESHOLD) {
+			return parseWithPython(str);
+		}
+
 		return new SongJson(str).doParse();
+	}
+
+	static function parseWithPython(str:String):Dynamic {
+		try {
+			var pythonScript = 'backend/large_chart_parser.py';
+			var process = new sys.io.Process('python', ['$pythonScript']);
+
+			process.stdin.writeString(str);
+			process.stdin.close();
+
+			var parsedContent = process.stdout.readAll().toString();
+			var exitCode = process.exitCode();
+			process.close();
+
+			if (exitCode == 0) {
+				return haxe.Json.parse(parsedContent);
+			} else {
+				trace("Python parsing failed (exit code: $exitCode), falling back to Haxe parser");
+				return new SongJson(str).doParse();
+			}
+		} catch (e:Dynamic) {
+			trace("Python fallback error: $e, using Haxe parser");
+			return new SongJson(str).doParse();
+		}
 	}
 
 	var str:String;
@@ -112,40 +142,65 @@ class SongJson {
 				var escapeNext = false;
 
 				while (pos < str.length) {
-					c = nextChar();
-
-					if (escapeNext) {
-						escapeNext = false;
-						continue;
-					}
-
-					if (c == '\\'.code) {
-						escapeNext = true;
-						continue;
-					}
-
-					if (c == '"'.code) {
-						inString = !inString;
-						continue;
-					}
-
-					if (!inString) {
-						if (c == '['.code)
-							bracketCount++;
-						else if (c == ']'.code)
-							bracketCount--;
-						else if (c == '{'.code)
-							bracketCount++;
-						else if (c == '}'.code)
-							bracketCount--;
-
-						if (bracketCount == 0) {
-							prepareSkipMode = skipMode = false;
-							pos--;
-							comma = true;
-							skipDone = true;
-							break;
+					var nextBracket = -1;
+					var minPos = str.length;
+					for (bracketChar in ['[', ']', '{', '}']) {
+						var found = str.indexOf(bracketChar, pos);
+						if (found != -1 && found < minPos) {
+							minPos = found;
+							nextBracket = bracketChar.charCodeAt(0);
 						}
+					}
+
+					if (nextBracket == -1) {
+						prepareSkipMode = skipMode = false;
+						break;
+					}
+
+					var checkPos = pos;
+					var inStringSection = false;
+					var escapeNextSection = false;
+
+					while (checkPos <= minPos) {
+						var qc = StringTools.fastCodeAt(str, checkPos);
+
+						if (escapeNextSection) {
+							escapeNextSection = false;
+							checkPos++;
+							continue;
+						}
+
+						if (qc == '\\'.code) {
+							escapeNextSection = true;
+							checkPos++;
+							continue;
+						}
+
+						if (qc == '"'.code) {
+							inStringSection = !inStringSection;
+						}
+
+						if (!inStringSection) {
+							if (qc == '['.code)
+								bracketCount++;
+							else if (qc == ']'.code)
+								bracketCount--;
+							else if (qc == '{'.code)
+								bracketCount++;
+							else if (qc == '}'.code)
+								bracketCount--;
+						}
+
+						checkPos++;
+					}
+
+					pos = minPos + 1;
+
+					if (bracketCount == 0) {
+						prepareSkipMode = skipMode = false;
+						comma = true;
+						skipDone = true;
+						break;
 					}
 
 					if (pos % 100000 == 0)
