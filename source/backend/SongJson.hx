@@ -47,37 +47,7 @@ class SongJson {
 		If `str` is null, the result is unspecified.
 	**/
 	static public inline function parse(str:String):Dynamic {
-		var LARGE_FILE_THRESHOLD = 500 * 1024 * 1024;
-
-		if (str.length > LARGE_FILE_THRESHOLD) {
-			return parseWithPython(str);
-		}
-
 		return new SongJson(str).doParse();
-	}
-
-	static function parseWithPython(str:String):Dynamic {
-		try {
-			var pythonScript = 'backend/large_chart_parser.py';
-			var process = new sys.io.Process('python', ['$pythonScript']);
-
-			process.stdin.writeString(str);
-			process.stdin.close();
-
-			var parsedContent = process.stdout.readAll().toString();
-			var exitCode = process.exitCode();
-			process.close();
-
-			if (exitCode == 0) {
-				return haxe.Json.parse(parsedContent);
-			} else {
-				trace("Python parsing failed (exit code: $exitCode), falling back to Haxe parser");
-				return new SongJson(str).doParse();
-			}
-		} catch (e:Dynamic) {
-			trace("Python fallback error: $e, using Haxe parser");
-			return new SongJson(str).doParse();
-		}
 	}
 
 	var str:String;

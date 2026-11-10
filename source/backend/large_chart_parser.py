@@ -1,9 +1,17 @@
 import sys
 import json
 
-def parse_large_chart():
+def parse_large_chart(file_path):
     try:
-        data = json.load(sys.stdin)
+        file_size = 0
+        with open(file_path, 'rb') as f:
+            f.seek(0, 2)
+            file_size = f.tell()
+            f.seek(0)
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            print(f"Parsed {file_size} bytes", file=sys.stderr, flush=True)
 
         json.dump(data, sys.stdout)
 
@@ -13,4 +21,9 @@ def parse_large_chart():
         return 1
 
 if __name__ == "__main__":
-    sys.exit(parse_large_chart())
+    if len(sys.argv) != 2:
+        print("Usage: python large_chart_parser.py <file_path>", file=sys.stderr)
+        sys.exit(1)
+
+    file_path = sys.argv[1]
+    sys.exit(parse_large_chart(file_path))
