@@ -141,31 +141,12 @@ class Song
 	public static function getChart(jsonInput:String, ?folder:String):SwagSong
 	{
 		if(folder == null) folder = jsonInput;
+		var rawData:String = null;
 
 		var formattedFolder:String = Paths.formatToSongPath(folder);
 		var formattedSong:String = Paths.formatToSongPath(jsonInput);
 		_lastPath = Paths.json('$formattedFolder/$formattedSong');
 
-		var LARGE_FILE_THRESHOLD = 500 * 1024 * 1024;
-		var filePath:String = null;
-
-		#if MODS_ALLOWED
-		if(FileSystem.exists(_lastPath))
-		{
-			filePath = _lastPath;
-			var fileSize = FileSystem.stat(_lastPath).size;
-			if (fileSize > LARGE_FILE_THRESHOLD)
-			{
-				return parseJSONWithPython(filePath, jsonInput);
-			}
-		}
-		else
-		#end
-		{
-			// For assets, we can't check size without loading, so load normally
-		}
-
-		var rawData:String = null;
 		#if MODS_ALLOWED
 		if(FileSystem.exists(_lastPath))
 			rawData = File.getContent(_lastPath);
@@ -174,36 +155,6 @@ class Song
 			rawData = Assets.getText(_lastPath);
 
 		return rawData != null ? parseJSON(rawData, jsonInput) : null;
-	}
-
-	public static function parseJSONWithPython(filePath:String, ?nameForError:String = null):SwagSong
-	{
-		try
-		{
-			var pythonScript = 'backend/large_chart_parser.py';
-			var process = new sys.io.Process('python', ['$pythonScript', filePath]);
-
-			var parsedContent = process.stdout.readAll().toString();
-			var exitCode = process.exitCode();
-			process.close();
-
-			if (exitCode == 0)
-			{
-				return parseJSON(parsedContent, nameForError);
-			}
-			else
-			{
-				trace("Python parsing failed (exit code: $exitCode), falling back to normal loading");
-				var rawData = sys.io.File.getContent(filePath);
-				return parseJSON(rawData, nameForError);
-			}
-		}
-		catch (e:Dynamic)
-		{
-			trace("Python fallback error: $e, using normal loading");
-			var rawData = sys.io.File.getContent(filePath);
-			return parseJSON(rawData, nameForError);
-		}
 	}
 
 	public static function parseJSON(rawData:String, ?nameForError:String = null, ?convertTo:String = 'psych_v1'):SwagSong
