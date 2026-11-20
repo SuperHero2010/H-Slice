@@ -306,9 +306,9 @@ class SongJsonStream
 			var c = readByte();
 			var digit = switch (c)
 			{
-				case '0'.code...'9'.code: c - '0'.code;
-				case 'a'.code...'f'.code: c - 'a'.code + 10;
-				case 'A'.code...'F'.code: c - 'A'.code + 10;
+				case 48, 49, 50, 51, 52, 53, 54, 55, 56, 57: c - 48; // '0'-'9'
+				case 97, 98, 99, 100, 101, 102: c - 97 + 10; // 'a'-'f'
+				case 65, 66, 67, 68, 69, 70: c - 65 + 10; // 'A'-'F'
 				default: throw 'Invalid hex digit at position $filePos';
 			}
 			result = (result << 4) | digit;
@@ -329,22 +329,22 @@ class SongJsonStream
 
 			switch (c)
 			{
-				case '0'.code...'9'.code:
+				case 48, 49, 50, 51, 52, 53, 54, 55, 56, 57: // '0'-'9'
 					buf.addChar(c);
-				case '-'.code:
+				case 45: // '-'
 					if (buf.length == 0) buf.addChar(c);
 					else break;
-				case '+'.code:
+				case 43: // '+'
 					if (hasExponent) buf.addChar(c);
 					else break;
-				case '.'.code:
+				case 46: // '.'
 					if (!hasDecimal && !hasExponent)
 					{
 						buf.addChar(c);
 						hasDecimal = true;
 					}
 					else break;
-				case 'e'.code, 'E'.code:
+				case 101, 69: // 'e', 'E'
 					if (!hasExponent)
 					{
 						buf.addChar(c);
