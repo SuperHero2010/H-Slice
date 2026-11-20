@@ -275,8 +275,8 @@ class SongJsonStream
 					case '"'.code: buf.addChar('"'.code);
 					case '\\'.code: buf.addChar('\\'.code);
 					case '/'.code: buf.addChar('/'.code);
-					case 'b'.code: buf.addChar('\b'.code);
-					case 'f'.code: buf.addChar('\f'.code);
+					case 'b'.code: buf.addChar(8); // backspace
+					case 'f'.code: buf.addChar(12); // form feed
 					case 'n'.code: buf.addChar('\n'.code);
 					case 'r'.code: buf.addChar('\r'.code);
 					case 't'.code: buf.addChar('\t'.code);
