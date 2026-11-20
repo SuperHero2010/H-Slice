@@ -149,7 +149,20 @@ class Song
 
 		#if MODS_ALLOWED
 		if(FileSystem.exists(_lastPath))
+		{
+			// For large files in play mode, use streaming parser
+			if (SongJson.skipChart)
+			{
+				var fileSize = FileSystem.stat(_lastPath).size;
+				if (fileSize > 100 * 1024 * 1024) // 100MB threshold
+				{
+					SongJsonStream.skipChart = true;
+					var songJson:SwagSong = cast SongJsonStream.parse(_lastPath);
+					return songJson;
+				}
+			}
 			rawData = File.getContent(_lastPath);
+		}
 		else
 		#end
 			rawData = Assets.getText(_lastPath);
