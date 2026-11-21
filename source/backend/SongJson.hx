@@ -56,6 +56,9 @@ class SongJson {
 	public static var skipChart:Bool = false;
 	public static var log:Bool = true;
 
+	// Section deduplication cache
+	var sectionCache:Map<String, Dynamic> = new Map();
+
 	function new(str:String) {
 		this.str = str;
 		this.pos = 0;
@@ -98,6 +101,11 @@ class SongJson {
 	var arr = [];
 
 	var returnObject:Array<Dynamic> = [];
+
+	// Section deduplication tracking
+	var inNotesArray:Bool = false;
+	var currentSectionFields:Map<String, Dynamic> = new Map();
+	var currentSectionKey:String = null;
 
 	function parseRec():Dynamic {
 		while (true) {
@@ -189,6 +197,8 @@ class SongJson {
 					obj[++objLayer] = {};
 					field = null;
 					comma = null;
+					var sectionStartPos = pos;
+					var sectionFields:Map<String, Dynamic> = new Map();
 					while (true) {
 						showProgress();
 						c = nextChar();
@@ -199,11 +209,36 @@ class SongJson {
 								if (field != null || comma == false)
 									invalidChar();
 								comma = null;
+
+								// Section deduplication: if we're in notes array and this is a section
+								if (inNotesArray && skipChart)
+								{
+									// Create cache key from section fields (excluding sectionNotes)
+									var cacheKey = createSectionCacheKey(obj[objLayer]);
+									if (cacheKey != null && sectionCache.exists(cacheKey))
+									{
+										// Return cached section
+										obj[objLayer--] = sectionCache.get(cacheKey);
+										return obj[objLayer + 1];
+									}
+									else if (cacheKey != null)
+									{
+										// Cache this section
+										sectionCache.set(cacheKey, obj[objLayer]);
+									}
+								}
+
 								return obj[objLayer--];
 							case ':'.code:
 								if (field == null)
 									invalidChar();
-								Reflect.setField(obj[objLayer], field, parseRec());
+								var value = parseRec();
+								Reflect.setField(obj[objLayer], field, value);
+								// Track field for deduplication (skip sectionNotes)
+								if (inNotesArray && field != "sectionNotes")
+								{
+									sectionFields.set(field, value);
+								}
 								field = null;
 								comma = true;
 							case ','.code:
@@ -231,6 +266,7 @@ class SongJson {
 						} while (chrode == ' '.code || chrode == '\r'.code || chrode == '\n'.code || chrode == '\t'.code);
 
 						skipMode = true;
+						inNotesArray = true; // Track that we're in notes array
 						#if debug trace('skipMode activated at $pos'); #end
 						continue;
 					}
@@ -245,6 +281,7 @@ class SongJson {
 							case ']'.code:
 								if (comma == false) invalidChar();
 								comma = null;
+								inNotesArray = false; // Exit notes array
 								return arr[arrLayer--];
 							case ','.code:
 								if (comma) comma = false else invalidChar();
@@ -472,5 +509,37 @@ class SongJson {
 
 	function invalidNumber(start:Int) {
 		throw "Invalid number at position " + start + ": " + str.substr(start, pos - start);
+	}
+
+	// Create a cache key from section object (excluding sectionNotes)
+	function createSectionCacheKey(section:Dynamic):String
+	{
+		if (section == null) return null;
+
+		var keyParts:Array<String> = [];
+		var fields = Reflect.fields(section);
+
+		for (field in fields)
+		{
+			if (field == "sectionNotes") continue; // Skip notes when creating key
+
+			var value = Reflect.field(section, field);
+			var valueStr = switch (Type.typeof(value))
+			{
+				case TInt: Std.string(value);
+				case TFloat: Std.string(value);
+				case TClass(String): value;
+				case TBool: Std.string(value);
+				default: ""; // Skip complex objects
+			}
+			if (valueStr != "")
+			{
+				keyParts.push('$field:$valueStr');
+			}
+		}
+
+		if (keyParts.length == 0) return null;
+		keyParts.sort(function(a, b) return Reflect.compare(a, b));
+		return keyParts.join("|");
 	}
 }
