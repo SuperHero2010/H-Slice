@@ -2,8 +2,8 @@ package backend.play;
 
 import backend.cache.BinCache;
 import backend.cache.BinCache.BlockInfo;
-import backend.cache.BinCache.CacheEntry;
-import backend.cache.BinCache.CacheReader;
+import backend.cache.CacheEntry;
+import backend.cache.CacheReader;
 import backend.cache.NoteCodec;
 import backend.play.NoteBlock.LaneData;
 
