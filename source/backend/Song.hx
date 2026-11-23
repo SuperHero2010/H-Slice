@@ -3,6 +3,10 @@ package backend;
 import haxe.ds.Vector;
 import haxe.Json;
 import backend.SongJson;
+import backend.cache.BinCache;
+import backend.cache.CacheEntry;
+import backend.chart.NoteBuilder;
+import backend.play.NoteStore;
 import lime.utils.Assets;
 
 import objects.Note;
@@ -126,11 +130,13 @@ class Song
 
 	public static var chartPath:String;
 	public static var loadedSongName:String;
+	public static var noteStore:NoteStore = null;
+
 	public static function loadFromJson(jsonInput:String, forPlay:Bool, ?folder:String):SwagSong
 	{
 		SongJson.skipChart = forPlay;
 		if(folder == null) folder = jsonInput;
-		PlayState.SONG = getChart(jsonInput, folder);
+		PlayState.SONG = getChart(jsonInput, folder, forPlay);
 		loadedSongName = folder;
 		chartPath = _lastPath.replace('/', '\\');
 		StageData.loadDirectory(PlayState.SONG);
@@ -138,7 +144,7 @@ class Song
 	}
 
 	static var _lastPath:String;
-	public static function getChart(jsonInput:String, ?folder:String):SwagSong
+	public static function getChart(jsonInput:String, ?folder:String, ?forPlay:Bool = false):SwagSong
 	{
 		if(folder == null) folder = jsonInput;
 		var rawData:String = null;
@@ -146,6 +152,41 @@ class Song
 		var formattedFolder:String = Paths.formatToSongPath(folder);
 		var formattedSong:String = Paths.formatToSongPath(jsonInput);
 		_lastPath = Paths.json('$formattedFolder/$formattedSong');
+
+		// Try binary cache first for play mode
+		if (forPlay)
+		{
+			try {
+				final cache:BinCache = new BinCache(BinCache.getCachePath());
+				final fileStamp:String = _getFileStamp(_lastPath);
+				final cacheKey:String = '$formattedFolder/$formattedSong';
+				final entry:CacheEntry = cache.find(cacheKey, fileStamp);
+
+				if (entry != null)
+				{
+					// Use binary cache - create NoteStore for streaming
+					noteStore = new NoteStore(cache, entry, 10); // 10ms merge window
+					// Return minimal song data for compatibility
+					final song:SwagSong = {
+						song: formattedSong,
+						notes: [],
+						events: [],
+						bpm: entry.meta != null ? entry.meta.bpm : 100,
+						needsVoices: true,
+						speed: entry.meta != null ? entry.meta.speed : 1,
+						offset: 0,
+						player1: 'bf',
+						player2: 'dad',
+						gfVersion: 'gf',
+						stage: 'stage',
+						format: 'psych_v1'
+					};
+					return song;
+				}
+			} catch (e:Dynamic) {
+				trace('Cache load failed: $e');
+			}
+		}
 
 		#if MODS_ALLOWED
 		if(FileSystem.exists(_lastPath))
@@ -167,7 +208,68 @@ class Song
 		#end
 			rawData = Assets.getText(_lastPath);
 
-		return rawData != null ? parseJSON(rawData, jsonInput) : null;
+		final song:SwagSong = rawData != null ? parseJSON(rawData, jsonInput) : null;
+
+		// Build cache if in play mode and we have a valid song
+		if (forPlay && song != null)
+		{
+			try {
+				buildCache(song, formattedFolder, formattedSong, _lastPath);
+			} catch (e:Dynamic) {
+				trace('Cache build failed: $e');
+			}
+		}
+
+		return song;
+	}
+
+	static function _getFileStamp(path:String):String
+	{
+		#if MODS_ALLOWED
+		if (FileSystem.exists(path))
+		{
+			final stat = FileSystem.stat(path);
+			return Std.string(stat.size) + '@' + Std.string(stat.mtime.getTime());
+		}
+		#end
+		return 'unknown';
+	}
+
+	static function buildCache(song:SwagSong, folder:String, name:String, path:String):Void
+	{
+		final cache:BinCache = new BinCache(BinCache.getCachePath());
+		final fileStamp:String = _getFileStamp(path);
+		final cacheKey:String = '$folder/$name';
+
+		// Build NoteBuilder from song
+		final builder:NoteBuilder = new NoteBuilder(4); // Default 4 keys
+		for (section in song.notes)
+		{
+			final mustHit:Bool = section.mustHitSection;
+			for (note in section.sectionNotes)
+			{
+				final time:Float = note[0];
+				final lane:Float = note[1];
+				final length:Float = note[2];
+				final laneIndex:Int = Std.int(lane);
+				final right:Bool = laneIndex >= 4;
+				final finalLane:Int = builder.laneOf(laneIndex % 4, right);
+				builder.add(time, finalLane, length);
+			}
+		}
+		builder.finish();
+
+		// Build metadata
+		final meta:ChartMeta = new ChartMeta();
+		meta.song = song.song;
+		meta.bpm = song.bpm;
+		meta.speed = song.speed;
+		meta.keys = 4;
+		meta.format = song.format;
+		meta.measure(builder);
+
+		// Store in cache
+		cache.store(cacheKey, fileStamp, meta, builder, 4); // 4 threads
 	}
 
 	public static function parseJSON(rawData:String, ?nameForError:String = null, ?convertTo:String = 'psych_v1'):SwagSong

@@ -3,6 +3,7 @@ package backend;
 import haxe.Timer;
 import haxe.ds.Vector;
 import sys.io.FileInput;
+import backend.chart.NoteBuilder;
 
 /**
 Streaming JSON parser for large files.
@@ -15,27 +16,46 @@ class SongJsonStream
 	var bufferPos:Int;
 	var bufferSize:Int;
 	var filePos:Int;
+	var fileSize:Int = 0;
 	var time:Float = Timer.stamp();
 	public static var skipChart:Bool = false;
 	public static var log:Bool = true;
 	var lastKey:String = null;
+	var onProgress:Float->Void = null;
+	var noteBuilder:NoteBuilder = null;
+	var sectionMustHit:Bool = false;
+	var sectionBpm:Float = 100;
+	var sectionChangeBpm:Bool = false;
+	var sectionAltAnim:Bool = false;
 
-	static inline var CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+	static inline var CHUNK_SIZE = 4 * 1024 * 1024; // 4MB chunks (matches Strand)
 
-	function new(filePath:String)
+	function new(filePath:String, ?onProgress:Float->Void)
 	{
 		this.file = sys.io.File.read(filePath, false);
 		this.buffer = haxe.io.Bytes.alloc(CHUNK_SIZE);
 		this.bufferPos = 0;
 		this.bufferSize = 0;
 		this.filePos = 0;
+		this.onProgress = onProgress;
+		#if sys
+		this.fileSize = Sys.getFileSize(filePath);
+		#end
 	}
 
-	static public inline function parse(filePath:String):Dynamic
+	static public inline function parse(filePath:String, ?onProgress:Float->Void):Dynamic
 	{
-		var parser = new SongJsonStream(filePath);
+		var parser = new SongJsonStream(filePath, onProgress);
 		var result = parser.doParse();
 		parser.file.close();
+		return result;
+	}
+
+	public function parseWithBuilder(builder:NoteBuilder):Dynamic
+	{
+		this.noteBuilder = builder;
+		var result = doParse();
+		this.noteBuilder = null;
 		return result;
 	}
 
@@ -63,6 +83,9 @@ class SongJsonStream
 	{
 		bufferSize = file.readBytes(buffer, 0, CHUNK_SIZE);
 		bufferPos = 0;
+		if (onProgress != null && fileSize > 0) {
+			onProgress(filePos / fileSize);
+		}
 	}
 
 	function skipWhitespace():Void
@@ -136,6 +159,31 @@ class SongJsonStream
 				if (colon != ':'.code) throw 'Expected colon at position $filePos';
 
 				skipWhitespace();
+
+				// Handle section properties for note building
+				if (noteBuilder != null) {
+					switch (key) {
+						case 'mustHitSection':
+							sectionMustHit = parseBool();
+							continue;
+						case 'bpm':
+							sectionBpm = parseFloat();
+							continue;
+						case 'changeBPM':
+							sectionChangeBpm = parseBool();
+							continue;
+						case 'altAnim':
+							sectionAltAnim = parseBool();
+							continue;
+						case 'sectionNotes':
+							// Stream notes directly into NoteBuilder
+							if (noteBuilder != null) {
+								streamSectionNotes();
+								continue;
+							}
+					}
+				}
+
 				var value = parseRec();
 				Reflect.setField(obj, key, value);
 
@@ -207,6 +255,133 @@ class SongJsonStream
 	{
 		// Check if the last key parsed was "notes"
 		return lastKey == "notes";
+	}
+
+	function parseBool():Bool
+	{
+		var c = readByte();
+		if (c == 't'.code) {
+			expect('r');
+			expect('u');
+			expect('e');
+			return true;
+		} else if (c == 'f'.code) {
+			expect('a');
+			expect('l');
+			expect('s');
+			expect('e');
+			return false;
+		}
+		throw 'Expected boolean at position $filePos';
+	}
+
+	function parseFloat():Float
+	{
+		bufferPos--; // put back the byte we peeked
+		return parseNumber();
+	}
+
+	function streamSectionNotes():Void
+	{
+		expect('['.code);
+		skipWhitespace();
+
+		while (true)
+		{
+			var c = readByte();
+			if (c == -1) throw 'Unexpected EOF in sectionNotes';
+
+			if (c == ']'.code)
+			{
+				return;
+			}
+
+			if (c == '['.code)
+			{
+				streamNote();
+			}
+			else
+			{
+				// Skip non-array values
+				bufferPos--;
+				parseRec();
+			}
+
+			skipWhitespace();
+			var next = readByte();
+			if (next == ','.code)
+			{
+				skipWhitespace();
+				continue;
+			}
+			else if (next == ']'.code)
+			{
+				return;
+			}
+			else
+			{
+				throw 'Expected comma or ] in sectionNotes';
+			}
+		}
+	}
+
+	function streamNote():Void
+	{
+		// Note format: [time, lane, length, type]
+		var time:Float = 0;
+		var lane:Float = 0;
+		var length:Float = 0;
+		var type:String = null;
+
+		skipWhitespace();
+		var c = readByte();
+
+		if (c == ']'.code)
+		{
+			// Empty note array
+			return;
+		}
+
+		bufferPos--; // put back
+
+		// Parse time
+		time = parseNumber();
+		skipWhitespace();
+		expect(',');
+		skipWhitespace();
+
+		// Parse lane
+		lane = parseNumber();
+		skipWhitespace();
+		expect(',');
+		skipWhitespace();
+
+		// Parse length
+		length = parseNumber();
+		skipWhitespace();
+
+		// Check for type (optional)
+		c = readByte();
+		if (c == ','.code)
+		{
+			skipWhitespace();
+			type = parseString();
+		}
+		else
+		{
+			bufferPos--;
+		}
+
+		skipWhitespace();
+		expect(']'.code);
+
+		// Add to NoteBuilder
+		if (noteBuilder != null && !Math.isNaN(time) && lane >= 0) {
+			var laneIndex:Int = Std.int(lane);
+			var right:Bool = sectionMustHit;
+			var finalLane:Int = noteBuilder.laneOf(laneIndex, right);
+			noteBuilder.add(time, finalLane, length);
+		}
 	}
 
 	function skipArray():Void

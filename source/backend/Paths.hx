@@ -50,7 +50,7 @@ class Paths
 
 	static var splashFrames:FlxFramesCollection;
 	static var splashAnimation:FlxAnimationController;
-	
+
 	public static function excludeAsset(key:String) {
 		if (!dumpExclusions.contains(key))
 			dumpExclusions.push(key);
@@ -119,7 +119,7 @@ class Paths
 	public static function initNote(noteSkin:String = "")
 	{
 		var spr:FlxSprite = new FlxSprite();
-		
+
 		// Do this to be able to just copy over the note animations and not reallocate it
 		if (noteSkin == null || noteSkin.length == 0) noteSkin = defaultSkin;
 		spr.frames = getSparrowAtlas(noteSkin);
@@ -350,10 +350,10 @@ class Paths
 		}
 		return getPackerAtlas(key, parentFolder);
 	}
-	
+
 	static public function getMultiAtlas(keys:Array<String>, ?parentFolder:String = null, ?allowGPU:Bool = true):FlxAtlasFrames
 	{
-		
+
 		var parentFrames:FlxAtlasFrames = Paths.getAtlas(keys[0].trim());
 		if(keys.length > 1)
 		{
@@ -369,7 +369,7 @@ class Paths
 		}
 		return parentFrames;
 	}
-	
+
 	inline static public function getSparrowAtlas(key:String, ?parentFolder:String = null, ?allowGPU:Bool = true):FlxAtlasFrames
 	{
 		if(key.contains('psychic')) trace(key, parentFolder, allowGPU);
@@ -391,7 +391,7 @@ class Paths
 		var imageLoaded:FlxGraphic = image(key, parentFolder, allowGPU);
 		#if MODS_ALLOWED
 		var txtExists:Bool = false;
-		
+
 		var txt:String = modsTxt(key);
 		if(FileSystem.exists(txt)) txtExists = true;
 
@@ -520,7 +520,7 @@ class Paths
 
 	#if linux
 	static function findFile(key:String):String // used above ^^^^
-	{ 
+	{
 		var targetDir:Array<String> = key.replace('\\','/').split('/');
 		var searchDir:String = mods(Mods.currentModDirectory + '/' + targetDir[0]);
 		targetDir.remove(targetDir[0]);
@@ -564,20 +564,29 @@ class Paths
 	#end // linux
 	#end // MODS_ALLOWED
 
+	public static function getEnginePath():String
+	{
+		#if sys
+		return Sys.getCwd() + '/';
+		#else
+		return './';
+		#end
+	}
+
 	#if flxanimate
 	public static function loadAnimateAtlas(spr:FlxAnimate, folderOrImg:Dynamic, spriteJson:Dynamic = null, animationJson:Dynamic = null)
 	{
 		var changedAnimJson = false;
 		var changedAtlasJson = false;
 		var changedImage = false;
-		
+
 		if(spriteJson != null)
 		{
 			changedAtlasJson = true;
 			spriteJson = File.getContent(spriteJson);
 		}
 
-		if(animationJson != null) 
+		if(animationJson != null)
 		{
 			changedAnimJson = true;
 			animationJson = File.getContent(animationJson);
