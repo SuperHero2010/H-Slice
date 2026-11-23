@@ -1,8 +1,8 @@
 package backend.play;
 
 import backend.cache.BinCache;
-import backend.cache.BlockInfo;
 import backend.cache.CacheEntry;
+import backend.cache.CacheEntry.BlockInfo;
 import backend.cache.CacheReader;
 import backend.cache.NoteCodec;
 import backend.play.NoteBlock.LaneData;
@@ -50,7 +50,8 @@ class NoteStore
 		laneCount = keys * 2;
 
 		// Calculate optimal merge window based on chart density
-		final totalNotes:Float = entry.blocks.reduce((acc, b) -> acc + b.entries, 0);
+		var totalNotes:Float = 0;
+		for (b in entry.blocks) totalNotes += b.entries;
 		final duration:Float = entry.blocks.length > 0 ? (entry.blocks[entry.blocks.length - 1].endUs - entry.blocks[0].startUs) / 1000 : 1;
 		final nps:Float = totalNotes / Math.max(1, duration);
 

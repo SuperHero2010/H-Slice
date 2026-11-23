@@ -56,7 +56,7 @@ class NoteSkin
 
 	public static function load(path:String):NoteSkin
 	{
-		final graphic:FlxGraphic = FlxGraphic.fromAsset(path);
+		final graphic:FlxGraphic = FlxGraphic.fromAssetKey(path);
 		if (graphic == null) return null;
 
 		final frames:FlxAtlasFrames = Paths.getSparrowAtlas(path);

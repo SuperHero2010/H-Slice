@@ -13,8 +13,8 @@ class NoteLayer extends FlxSprite
 	public var skin:NoteSkin;
 	public var lane:Int = 0;
 
-	var quadData:Array<Float> = [];
-	var quadCount:Int = 0;
+	public var quadData:Array<Float> = [];
+	public var quadCount:Int = 0;
 	static inline final QUAD_SIZE:Int = 24; // 6 vertices * 4 floats (x, y, u, v)
 
 	public function new(skin:NoteSkin, lane:Int)

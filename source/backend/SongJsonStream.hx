@@ -39,7 +39,8 @@ class SongJsonStream
 		this.filePos = 0;
 		this.onProgress = onProgress;
 		#if sys
-		this.fileSize = Sys.getFileSize(filePath);
+		final stat:sys.FileStat = sys.FileSystem.stat(filePath);
+		this.fileSize = stat.size;
 		#end
 	}
 
@@ -283,7 +284,7 @@ class SongJsonStream
 
 	function streamSectionNotes():Void
 	{
-		expect('['.code);
+		expect('[');
 		skipWhitespace();
 
 		while (true)
@@ -373,7 +374,7 @@ class SongJsonStream
 		}
 
 		skipWhitespace();
-		expect(']'.code);
+		expect(']');
 
 		// Add to NoteBuilder
 		if (noteBuilder != null && !Math.isNaN(time) && lane >= 0) {

@@ -58,10 +58,11 @@ class BinCache
 		final f = sys.io.File.read(path, false);
 		if (f == null) throw 'cannot open';
 		try {
-			final size:Float = Sys.getFileSize(path);
+			final stat:sys.FileStat = sys.FileSystem.stat(path);
+			final size:Float = stat.size;
 			if (size < HEADER) throw 'too small';
 			final head:Bytes = Bytes.alloc(HEADER);
-			f.readFull(head, 0, HEADER);
+			f.readBytes(head, 0, HEADER);
 			if (head.getString(0, 6) != MAGIC) throw 'not a H-Slice cache';
 			if (head.getInt32(8) > VERSION) throw 'made by a newer version';
 			final at:Float = head.getDouble(16);
@@ -70,7 +71,7 @@ class BinCache
 			if (comp <= 0 || at + comp > size) throw 'index missing';
 			final data:Bytes = Bytes.alloc(comp + 5);
 			data.blit(0, head, 40, 5);
-			f.readFull(data, 5, comp);
+			f.readBytes(data, 5, comp);
 			final raw:Bytes = NoteCodec.decompress(data, comp + 5, rawLen);
 			final index:Dynamic = haxe.Json.parse(raw.toString());
 			final list:Array<Dynamic> = index.entries;
@@ -168,11 +169,11 @@ class BinCache
 			final f = sys.io.File.write(path, true);
 			try {
 				var at:Float = fileEnd;
-				f.seek(Std.int(at));
+				f.seek(Std.int(at), sys.io.FileSeek.SeekBegin);
 				for (k in 0...blockCount) {
 					final comp:Bytes = results[k];
 					f.write(comp);
-					final info:BlockInfo = new BlockInfo();
+					final info:CacheEntry.BlockInfo = new CacheEntry.BlockInfo();
 					info.offset = at;
 					info.comp = comp.length;
 					info.raw = raws[k];
@@ -218,7 +219,7 @@ class BinCache
 		final list:Array<Dynamic> = [for (e in entries) e.toObject()];
 		final raw:Bytes = Bytes.ofString(haxe.Json.stringify({entries: list}));
 		final comp:Bytes = NoteCodec.compress(raw);
-		f.seek(Std.int(at));
+		f.seek(Std.int(at), sys.io.FileSeek.SeekBegin);
 		f.write(comp.sub(5, comp.length - 5));
 		f.flush();
 		final head:Bytes = Bytes.alloc(HEADER);
@@ -228,7 +229,7 @@ class BinCache
 		head.setDouble(24, comp.length - 5);
 		head.setDouble(32, raw.length);
 		head.blit(40, comp, 0, 5);
-		f.seek(0);
+		f.seek(0, sys.io.FileSeek.SeekBegin);
 		f.write(head);
 		f.flush();
 		fileEnd = at + comp.length - 5;
@@ -277,8 +278,8 @@ class BinCache
 				final offsets:Array<Float> = [];
 				for (b in e.blocks) {
 					if (buf.length < b.comp) buf = Bytes.alloc(b.comp);
-					src.seek(Std.int(b.offset));
-					src.readFull(buf, 0, b.comp);
+					src.seek(Std.int(b.offset), sys.io.FileSeek.SeekBegin);
+					src.readBytes(buf, 0, b.comp);
 					dst.write(buf);
 					offsets.push(at);
 					at += b.comp;
