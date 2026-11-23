@@ -33,6 +33,12 @@ class WiggleEffect
 		shader.uTime.value[0] = value;
 	}
 
+	function set_shader(v:WiggleShader):WiggleShader
+	{
+		shader = v;
+		return v;
+	}
+
 	function set_effectType(v:WiggleEffectType):WiggleEffectType
 	{
 		effectType = v;

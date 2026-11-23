@@ -1,7 +1,7 @@
 package backend.play;
 
 import backend.cache.BinCache;
-import backend.cache.BinCache.BlockInfo;
+import backend.cache.BlockInfo;
 import backend.cache.CacheEntry;
 import backend.cache.CacheReader;
 import backend.cache.NoteCodec;

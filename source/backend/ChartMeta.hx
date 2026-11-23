@@ -66,7 +66,8 @@ class ChartMeta
 		m.nps = o.nps != null ? o.nps : 0;
 		m.maxNps = o.maxNps != null ? o.maxNps : 0;
 		if (o.parts != null) {
-			for (p in o.parts) {
+			final parts:Array<Dynamic> = o.parts;
+			for (p in parts) {
 				final part:SplitPart = new SplitPart();
 				part.speed = p.speed;
 				part.bpm = p.bpm;

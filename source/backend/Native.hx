@@ -61,7 +61,7 @@ class Native
 	{
 		#if (cpp && windows)
 		untyped __cpp__('
-			SetProcessDPIAware();	
+			SetProcessDPIAware();
 			#ifdef DPI_AWARENESS_CONTEXT
 			SetProcessDpiAwarenessContext(
 				#ifdef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
@@ -96,10 +96,10 @@ class Native
 	}
 
 	#if cpp
-	@:cffi @:noCompletion
+	@:cffi @:noCompletion @:extern
 	public static function lzmaEncode(src:haxe.io.Bytes, srcOffset:Int, srcLen:Int, dst:haxe.io.Bytes, dstOffset:Int, props:haxe.io.Bytes, level:Int, dictSize:Int, lc:Int, lp:Int, pb:Int):Int;
 
-	@:cffi @:noCompletion
+	@:cffi @:noCompletion @:extern
 	public static function lzmaDecode(src:haxe.io.Bytes, srcOffset:Int, srcLen:Int, dst:haxe.io.Bytes, dstOffset:Int, dstLen:Int, props:haxe.io.Bytes, propsSize:Int):Bool;
 	#end
 }
