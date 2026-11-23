@@ -6,6 +6,7 @@ import backend.chart.NoteBuilder;
 import backend.chart.NoteBuilder.BuilderLane;
 import backend.Native;
 import backend.Paths;
+import backend.cache.CacheEntry;
 
 class BinCache
 {
