@@ -12,43 +12,7 @@ import flixel.util.FlxColor;
 <target id="haxe">
 	<lib name="dwmapi.lib" if="windows"/>
 	<lib name="gdi32.lib" if="windows"/>
-	<lib name="lzma.lib" if="windows"/>
 </target>
-')
-@:cppFileCode('
-#include <windows.h>
-#include <dwmapi.h>
-#include <winuser.h>
-#include <wingdi.h>
-
-#include <LzmaDec.h>
-#include <LzmaEnc.h>
-
-static void *SzAlloc(void *p, size_t size) { p = p; return malloc(size); }
-static void SzFree(void *p, void *address) { p = p; free(address); }
-static ISzAlloc g_Alloc = { SzAlloc, SzFree };
-
-extern "C" int lzmaEncode(unsigned char *src, int srcLen, unsigned char *dst, int dstLen, unsigned char *props, int level, int dictSize, int lc, int lp, int pb) {
-	CLzmaEncProps props2;
-	LzmaEncProps_Init(&props2);
-	props2.level = level;
-	props2.dictSize = dictSize;
-	props2.lc = lc;
-	props2.lp = lp;
-	props2.pb = pb;
-	LzmaEncProps_Normalize(&props2);
-
-	SizeT propsSize = 5;
-	LzmaEncode(props, &propsSize, src, srcLen, dst, &dstLen, &props2, &g_Alloc, &g_Alloc);
-	return (int)dstLen;
-}
-
-extern "C" bool lzmaDecode(unsigned char *src, int srcLen, unsigned char *dst, int dstLen, unsigned char *props, int propsSize) {
-	ELzmaStatus status;
-	SizeT srcLen2 = srcLen;
-	SizeT dstLen2 = dstLen;
-	return LzmaDecode(dst, &dstLen2, src, &srcLen2, props, propsSize, LZMA_FINISH_END, &status, &g_Alloc) == SZ_OK;
-}
 ')
 #end
 class Native
@@ -95,47 +59,4 @@ class Native
 		}
 		#end
 	}
-
-	#if cpp
-	@:cppFileCode('
-#include <windows.h>
-#include <dwmapi.h>
-#include <winuser.h>
-#include <wingdi.h>
-
-#include <LzmaDec.h>
-#include <LzmaEnc.h>
-
-static void *SzAlloc(void *p, size_t size) { p = p; return malloc(size); }
-static void SzFree(void *p, void *address) { p = p; free(address); }
-static ISzAlloc g_Alloc = { SzAlloc, SzFree };
-
-extern "C" int lzmaEncode(unsigned char *src, int srcLen, unsigned char *dst, int dstLen, unsigned char *props, int level, int dictSize, int lc, int lp, int pb) {
-	CLzmaEncProps props2;
-	LzmaEncProps_Init(&props2);
-	props2.level = level;
-	props2.dictSize = dictSize;
-	props2.lc = lc;
-	props2.lp = lp;
-	props2.pb = pb;
-	LzmaEncProps_Normalize(&props2);
-
-	SizeT propsSize = 5;
-	LzmaEncode(props, &propsSize, src, srcLen, dst, &dstLen, &props2, &g_Alloc, &g_Alloc);
-	return (int)dstLen;
-}
-
-extern "C" bool lzmaDecode(unsigned char *src, int srcLen, unsigned char *dst, int dstLen, unsigned char *props, int propsSize) {
-	ELzmaStatus status;
-	SizeT srcLen2 = srcLen;
-	SizeT dstLen2 = dstLen;
-	return LzmaDecode(dst, &dstLen2, src, &srcLen2, props, propsSize, LZMA_FINISH_END, &status, &g_Alloc) == SZ_OK;
-}
-')
-	@:extern
-	public static function lzmaEncode(src:haxe.io.Bytes, srcLen:Int, dst:haxe.io.Bytes, dstLen:Int, props:haxe.io.Bytes, level:Int, dictSize:Int, lc:Int, lp:Int, pb:Int):Int;
-
-	@:extern
-	public static function lzmaDecode(src:haxe.io.Bytes, srcLen:Int, dst:haxe.io.Bytes, dstLen:Int, props:haxe.io.Bytes, propsSize:Int):Bool;
-	#end
 }

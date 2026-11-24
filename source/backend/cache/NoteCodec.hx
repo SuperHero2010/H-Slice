@@ -1,8 +1,9 @@
 package backend.cache;
 
 import haxe.io.Bytes;
+import haxe.zip.Compress;
+import haxe.zip.Uncompress;
 import backend.chart.NoteBuilder;
-import backend.Native;
 import backend.play.NoteBlock;
 import backend.play.NoteBlock.LaneData;
 
@@ -49,33 +50,12 @@ class NoteCodec
 
 	public static function compress(raw:Bytes):Bytes
 	{
-		final room:Int = raw.length + (raw.length >> 2) + 65536;
-		final out:Bytes = Bytes.alloc(room + 5);
-		final props:Bytes = Bytes.alloc(5);
-		var dict:Int = 1 << 16;
-		while (dict < raw.length && dict < (1 << 26)) dict <<= 1;
-
-		#if cpp
-		final n:Int = Native.lzmaEncode(raw, raw.length, out, room, props, LZMA_LEVEL, dict, 0, 0, 0);
-		if (n < 0) throw 'Could not compress a cache block';
-		out.blit(0, props, 0, 5);
-		return out.sub(0, n + 5);
-		#else
-		// Fallback to zlib for non-CPP targets
-		return haxe.zip.Compress.run(raw, 9);
-		#end
+		return Compress.run(raw, 9);
 	}
 
 	public static function decompress(comp:Bytes, compLen:Int, rawLen:Int):Bytes
 	{
-		#if cpp
-		final raw:Bytes = Bytes.alloc(rawLen);
-		if (!Native.lzmaDecode(comp, compLen, raw, rawLen, comp, 5)) throw 'A block of the cache is broken';
-		return raw;
-		#else
-		// Fallback to zlib for non-CPP targets
-		return haxe.zip.Uncompress.run(comp, rawLen);
-		#end
+		return Uncompress.run(comp, rawLen);
 	}
 
 	public static function decode(raw:Bytes, baseUs:Float, mergeMs:Float, into:NoteBlock):Void
