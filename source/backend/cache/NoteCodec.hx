@@ -55,17 +55,27 @@ class NoteCodec
 		var dict:Int = 1 << 16;
 		while (dict < raw.length && dict < (1 << 26)) dict <<= 1;
 
-		final n:Int = Native.lzmaEncode(raw, 0, raw.length, out, 5, props, LZMA_LEVEL, dict, 0, 0, 0);
+		#if cpp
+		final n:Int = Native.lzmaEncode(raw, raw.length, out, room, props, LZMA_LEVEL, dict, 0, 0, 0);
 		if (n < 0) throw 'Could not compress a cache block';
 		out.blit(0, props, 0, 5);
 		return out.sub(0, n + 5);
+		#else
+		// Fallback to zlib for non-CPP targets
+		return haxe.zip.Compress.run(raw, 9);
+		#end
 	}
 
 	public static function decompress(comp:Bytes, compLen:Int, rawLen:Int):Bytes
 	{
+		#if cpp
 		final raw:Bytes = Bytes.alloc(rawLen);
-		if (!Native.lzmaDecode(comp, 5, compLen - 5, raw, 0, rawLen, comp, 0)) throw 'A block of the cache is broken';
+		if (!Native.lzmaDecode(comp, compLen, raw, rawLen, comp, 5)) throw 'A block of the cache is broken';
 		return raw;
+		#else
+		// Fallback to zlib for non-CPP targets
+		return haxe.zip.Uncompress.run(comp, rawLen);
+		#end
 	}
 
 	public static function decode(raw:Bytes, baseUs:Float, mergeMs:Float, into:NoteBlock):Void
