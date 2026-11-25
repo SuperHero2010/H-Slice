@@ -26,16 +26,29 @@ class Native
 	{
 		#if (cpp && windows)
 		untyped __cpp__('
-			SetProcessDPIAware();
-			#ifdef DPI_AWARENESS_CONTEXT
-			SetProcessDpiAwarenessContext(
-				#ifdef DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
-				DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
-				#else
-				DPI_AWARENESS_CONTEXT_SYSTEM_AWARE
-				#endif
-			);
-			#endif
+			typedef enum _DPI_AWARENESS_CONTEXT {
+				DPI_AWARENESS_CONTEXT_UNAWARE = -1,
+				DPI_AWARENESS_CONTEXT_SYSTEM_AWARE = -2,
+				DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE = -3,
+				DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4,
+				DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V3 = -5
+			} DPI_AWARENESS_CONTEXT;
+
+			HMODULE hUser32 = LoadLibraryA("user32.dll");
+			if (hUser32) {
+				typedef BOOL (WINAPI *SetProcessDpiAwarenessContextProc)(DPI_AWARENESS_CONTEXT);
+				SetProcessDpiAwarenessContextProc pSetProcessDpiAwarenessContext = (SetProcessDpiAwarenessContextProc)GetProcAddress(hUser32, "SetProcessDpiAwarenessContext");
+				if (pSetProcessDpiAwarenessContext) {
+					pSetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+				} else {
+					typedef BOOL (WINAPI *SetProcessDPIAwareProc)(void);
+					SetProcessDPIAwareProc pSetProcessDPIAware = (SetProcessDPIAwareProc)GetProcAddress(hUser32, "SetProcessDPIAware");
+					if (pSetProcessDPIAware) {
+						pSetProcessDPIAware();
+					}
+				}
+				FreeLibrary(hUser32);
+			}
 		');
 		#end
 	}
