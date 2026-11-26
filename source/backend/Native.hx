@@ -14,6 +14,10 @@ import flixel.util.FlxColor;
 	<lib name="gdi32.lib" if="windows"/>
 </target>
 ')
+@:cppFileHeader('
+#include <windows.h>
+#include <libloaderapi.h>
+')
 #end
 class Native
 {
